@@ -1,0 +1,5 @@
+ollama
+pandas
+fastapi
+uvicorn[standard]
+

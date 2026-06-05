@@ -1,0 +1,16 @@
+services:
+  api:
+    build: .
+    container_name: mcc-api
+    ports:
+      - "8001:8000"
+    environment:
+      # Conecta al Ollama del host (corriendo en WSL en localhost:11434)
+      OLLAMA_HOST: "http://host.docker.internal:11434"
+      # Excluir localhost del proxy v2RayTun dentro del contenedor
+      no_proxy: "localhost,127.0.0.1,host.docker.internal"
+      NO_PROXY: "localhost,127.0.0.1,host.docker.internal"
+    extra_hosts:
+      # Necesario en Linux/WSL para que host.docker.internal resuelva al host
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
