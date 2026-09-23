@@ -1,6 +1,6 @@
 import pandas as pd
 
-df = pd.read_csv("data/benchmark_results.csv")
+df = pd.read_csv("data/benchmark_results_en.csv")
 print(f"Total comentarios analizados: {len(df)}")
 
 # ──────────────────────────────────────────────

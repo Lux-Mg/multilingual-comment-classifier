@@ -22,7 +22,7 @@ Classify its sentiment (positive/negative/neutral) and detect the language IT IS
 
 client = Client(host=OLLAMA_HOST)
 
-def clasificar_comentario(comentario, prompt_lang='es'):
+def clasificar_comentario(comentario, prompt_lang='en'):
     # Elegir prompt según el idioma
     if prompt_lang == 'en':
         prompt = PROMPT_EN.format(comentario=comentario)
@@ -50,8 +50,8 @@ def clasificar_comentario(comentario, prompt_lang='es'):
 if __name__ == "__main__":
     comentario_test = "This movie was a complete waste of time, terrible acting"
     
-    print("=== Con prompt ES (default) ===")
+    print("=== Con prompt ES ===")
+    print(clasificar_comentario(comentario_test, prompt_lang='es'))
+
+    print("\n=== Con prompt EN (default) ===")
     print(clasificar_comentario(comentario_test))
-    
-    print("\n=== Con prompt EN ===")
-    print(clasificar_comentario(comentario_test, prompt_lang='en'))

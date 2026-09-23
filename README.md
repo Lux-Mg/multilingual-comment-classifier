@@ -18,7 +18,7 @@ The service uses **Qwen 2.5 7B** through Ollama (running on the host with GPU) a
 
 ## Results
 
-The dataset comes from my thesis project (LenguaTrends) — **18,775 YouTube movie comments** in Spanish, English, and Russian, already labeled by a fine-tuned **XLM-RoBERTa** baseline (`cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual`).
+The benchmark sample comes from my thesis project, LenguaTrends. The source corpus is not tracked in this repository; the two committed result CSVs preserve the same 100 sampled comments and the outputs from an existing **XLM-RoBERTa-based** pipeline (`cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual`).
 
 I benchmarked the local LLM against this baseline on a sample of 100 comments (`random_state=42`):
 
@@ -26,15 +26,15 @@ I benchmarked the local LLM against this baseline on a sample of 100 comments (`
 |---|---|---|
 | Sentiment agreement | — | **67.8%** |
 | Language agreement | — | **97.7%** |
-| Coverage of "unsupported" comments | 0/13 | **13/13 (100%)** |
+| Coverage of "unsupported" comments | 0/13 | **12/13 (92.3%)** |
 | Latency P50 | (negligible, runs on CPU) | ~1.0 s |
-| Latency P95 | — | ~1.25 s |
+| Latency P95 | — | ~1.32 s |
 
 Numbers from `analyze_benchmark.py` over `data/benchmark_results_en.csv`.
 
 A few things worth pointing out:
 
-- **The "rescue" metric is the strongest finding.** XLM-RoBERTa relies on `langdetect` as a pre-processing step. When `langdetect` fails (short texts, emojis, code-switching), the comment is dropped with `language="unsupported"`. In the sample, 13/100 comments were dropped this way. The LLM classified all 13 of them, with reasonable accuracy on the cases I checked manually.
+- **The "rescue" metric measures coverage, not correctness.** The earlier pipeline relies on `langdetect` as a pre-processing step. When it fails, a comment is marked `language="unsupported"`. In the English-prompt run, Qwen assigned one of the three target languages to 12 of those 13 comments; without manual ground truth, this should not be read as 92.3% language accuracy.
 - **Sentiment agreement is not the same as sentiment accuracy.** Without a manually labeled gold standard, I can only compare against XLM-R, which is itself imperfect. The 67.8% means the two models disagree on roughly one in three borderline cases. Some of those disagreements I'd argue the LLM gets right (e.g. sarcasm: *"Can't wait for Avatar 9: moss and pollen"* — XLM-R said positive, LLM said negative).
 - **Latency is a function of running on a 2060 Super.** On a real GPU you'd see lower numbers; on CPU-only it's roughly 30–60× slower. The point of the service isn't competitive throughput, it's showing that a local LLM can be a viable replacement for a specialized pipeline when the operational constraints allow it.
 
@@ -121,7 +121,7 @@ ollama pull qwen2.5:7b
 Then the container:
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/Lux-Mg/multilingual-comment-classifier.git
 cd multilingual-comment-classifier
 docker compose up --build
 ```
@@ -165,7 +165,7 @@ A short list of things I'd improve given more time:
 
 - **No labeled ground truth.** The "accuracy" numbers compare against XLM-RoBERTa, which is itself imperfect. A proper evaluation would require ~200 comments labeled by hand. The disagreement analysis suggests some of the gap is the LLM being *more* correct (sarcasm, code-switching), not less.
 - **Single LLM tested.** Llama 3.1 8B and Qwen 3 would be obvious next comparisons. Qwen 2.5 was chosen for its multilingual coverage, but it's not the only option.
-- **No public deployment.** Running this on a cloud GPU costs real money; the demo runs locally for now. The architecture is deployment-ready (single container + an env var pointing at any Ollama-compatible endpoint).
+- **No public deployment.** The repository packages the API as a container for local use, but it does not provide or claim a production deployment.
 - **No batching or async.** Each request is a separate Ollama call. For sustained traffic you'd want either Ollama's built-in batch support or a queue in front of it.
 - **The `'other'` language code is coarse.** Languages outside en/es/ru collapse to a single bucket. Expanding the enum would require either more training data for the validator or just trusting the model's free-text output.
 
@@ -173,7 +173,7 @@ A short list of things I'd improve given more time:
 
 In rough order of usefulness:
 
-1. **Local LLMs cover edge cases that pre-processing pipelines drop.** The 100% rescue rate on `unsupported` comments is the part of this project I'd lead with in a conversation.
+1. **Local LLMs can cover cases that pre-processing pipelines drop.** In this sample, the English-prompt run assigned a target language to 12 of 13 comments marked `unsupported` by the earlier pipeline; manual labels would be needed to measure correctness.
 2. **Prompt language is a confounder.** It's the kind of bias you don't notice until you measure it. The Spanish prompt was off by 17/100 on language detection compared to the English one.
 3. **Structured output ≠ correct output.** Ollama's `format` parameter guarantees the JSON is well-formed and the values are within the enum, but the model still picks the wrong value sometimes. Schema validation gives you safety, not accuracy.
 4. **`host.docker.internal` is the cleanest way to bridge a containerized app to a host service in WSL2.** With `extra_hosts: host-gateway` in compose, it just works.
