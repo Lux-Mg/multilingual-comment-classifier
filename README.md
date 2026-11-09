@@ -2,7 +2,7 @@
 
 A small inference service that classifies movie comments by **sentiment** (positive/negative/neutral) and detects their **language** (en/es/ru/other), using a local LLM via Ollama and a FastAPI wrapper. Built as part of my AI/ML portfolio.
 
-The interesting bit isn't the architecture (it's straightforward) — it's the benchmark and the A/B test of prompt language, both documented below.
+The architecture is straightforward. The main part is the benchmark and the A/B test of prompt language, both documented below.
 
 ## What it does
 
@@ -22,20 +22,20 @@ The benchmark sample comes from my thesis project, LenguaTrends. The source corp
 
 I benchmarked the local LLM against this baseline on a sample of 100 comments (`random_state=42`):
 
-| Metric | XLM-R baseline (ground truth) | Qwen 2.5 7B (English prompt) |
+| Metric | XLM-R baseline (reference) | Qwen 2.5 7B (English prompt) |
 |---|---|---|
-| Sentiment agreement | — | **67.8%** |
-| Language agreement | — | **97.7%** |
+| Sentiment agreement | n/a | **67.8%** |
+| Language agreement | n/a | **97.7%** |
 | Coverage of "unsupported" comments | 0/13 | **12/13 (92.3%)** |
 | Latency P50 | (negligible, runs on CPU) | ~1.0 s |
-| Latency P95 | — | ~1.32 s |
+| Latency P95 | n/a | ~1.32 s |
 
-Numbers from `analyze_benchmark.py` over `data/benchmark_results_en.csv`.
+Numbers from `analyze_benchmark.py` over `data/benchmark_results_en.csv`. Agreement is computed on the 87 comments the baseline could classify; the other 13 are `unsupported`.
 
 A few things worth pointing out:
 
 - **The "rescue" metric measures coverage, not correctness.** The earlier pipeline relies on `langdetect` as a pre-processing step. When it fails, a comment is marked `language="unsupported"`. In the English-prompt run, Qwen assigned one of the three target languages to 12 of those 13 comments; without manual ground truth, this should not be read as 92.3% language accuracy.
-- **Sentiment agreement is not the same as sentiment accuracy.** Without a manually labeled gold standard, I can only compare against XLM-R, which is itself imperfect. The 67.8% means the two models disagree on roughly one in three borderline cases. Some of those disagreements I'd argue the LLM gets right (e.g. sarcasm: *"Can't wait for Avatar 9: moss and pollen"* — XLM-R said positive, LLM said negative).
+- **Sentiment agreement is not the same as sentiment accuracy.** Without a manually labeled gold standard, I can only compare against XLM-R, which is itself imperfect. The 67.8% means the two models disagree on roughly one in three borderline cases. Some of those disagreements I'd argue the LLM gets right (e.g. sarcasm: *"Can't wait for Avatar 9: moss and pollen"*: XLM-R said positive, LLM said negative).
 - **Latency is a function of running on a 2060 Super.** On a real GPU you'd see lower numbers; on CPU-only it's roughly 30–60× slower. The point of the service isn't competitive throughput, it's showing that a local LLM can be a viable replacement for a specialized pipeline when the operational constraints allow it.
 
 ## A/B test: prompt language matters
@@ -49,7 +49,7 @@ The first version of the classifier used a prompt written in Spanish. Once I had
 | ru | 26 | 28 | 28 |
 | unsupported / other | 13 | 0 | 2 |
 
-The Spanish prompt was biasing the model toward Spanish — by 17 cases, which is a lot for a 100-sample test. Looking at individual disagreements, clearly-English comments (*"Whaaat? A new Raimi movie?! Big fan."*, *"Gonna tell my kids this is Half Nelson"*) were being labeled `es` when the prompt was in Spanish.
+The Spanish prompt was biasing the model toward Spanish, by 17 cases, which is a lot for a 100-sample test. Looking at individual disagreements, clearly-English comments (*"Whaaat? A new Raimi movie?! Big fan."*, *"Gonna tell my kids this is Half Nelson"*) were being labeled `es` when the prompt was in Spanish.
 
 Switching the prompt to English fixed most of it:
 
@@ -102,12 +102,12 @@ The container talks to the host via `host.docker.internal`, which Docker Desktop
 
 ## Stack
 
-- **Python 3.12** — application code
-- **Ollama** — local LLM runtime (host)
-- **Qwen 2.5 7B** — open-weights model with strong multilingual support, particularly for Russian
-- **FastAPI + Uvicorn** — API layer, picked over Flask for built-in validation via Pydantic and automatic OpenAPI docs
-- **pandas** — data handling for the benchmark scripts
-- **Docker + docker-compose** — container packaging and host-network bridging
+- **Python 3.12**: application code
+- **Ollama**: local LLM runtime (host)
+- **Qwen 2.5 7B**: open-weights model with strong multilingual support, particularly for Russian
+- **FastAPI + Uvicorn**: API layer, picked over Flask for built-in validation via Pydantic and automatic OpenAPI docs
+- **pandas**: data handling for the benchmark scripts
+- **Docker + docker-compose**: container packaging and host-network bridging
 
 ## Running it
 
@@ -151,7 +151,7 @@ python -m uvicorn api:app --reload --port 8000
 ├── docker-compose.yml
 ├── requirements.txt
 ├── data/
-│   ├── comentarios.csv     # (not in git — comes from my thesis project)
+│   ├── comentarios.csv     # (not in git, comes from my thesis project)
 │   ├── benchmark_results_es.csv
 │   └── benchmark_results_en.csv
 └── README.md
